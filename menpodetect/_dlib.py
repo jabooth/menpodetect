@@ -1,15 +1,17 @@
 from __future__ import division
 import dlib
-from menpo.shape import PointCloud
+from menpo.shape import BoundingBox
 from menpo.transform import UniformScale
 import numpy as np
 
 dlib_frontal_face_detector = None
 
+uint_image = lambda i: (i.pixels[..., 0] * 255.0).astype(np.uint8)
 
-def pointcloud_from_rect(rect):
-    return PointCloud(np.array(((rect.top(), rect.left()),
-                                (rect.bottom(), rect.right()))))
+
+def boundingbox_from_rect(rect):
+    return BoundingBox(np.array(((rect.top(), rect.left()),
+                                 (rect.bottom(), rect.right()))))
 
 
 def dlib_detect_frontal_faces(image, add_as_landmarks=True, width=300):
@@ -22,12 +24,12 @@ def dlib_detect_frontal_faces(image, add_as_landmarks=True, width=300):
         did_rescale = True
         scale_factor = width / dlib_image.width
         dlib_image = dlib_image.rescale(scale_factor)
-    dlib_image = (dlib_image.pixels[..., 0] * 255.0).astype(np.uint8)
-    faces = dlib_frontal_face_detector(dlib_image)
-    pcs = [pointcloud_from_rect(f) for f in faces]
+    dlib_image_pixels = uint_image(dlib_image)
+    faces = dlib_frontal_face_detector(dlib_image_pixels)
+    bbs = [boundingbox_from_rect(f) for f in faces]
     if did_rescale:
-        pcs = [UniformScale(1/scale_factor, n_dims=2).apply(pc) for pc in pcs]
+        bbs = [UniformScale(1/scale_factor, n_dims=2).apply(pc) for pc in bbs]
     if add_as_landmarks:
-        for i, pc in enumerate(pcs):
+        for i, pc in enumerate(bbs):
             image.landmarks['frontal_face_{:02d}'.format(i)] = pc
-    return pcs
+    return bbs
